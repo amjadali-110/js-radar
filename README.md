@@ -1,5 +1,7 @@
 # JS Radar — JavaScript Security Analysis Platform
 
+<img width="1267" height="464" alt="Screenshot 2026-04-08 151543" src="https://github.com/user-attachments/assets/02d1d64c-93eb-4a74-a860-4065e07b2ee2" />
+
 A self-hosted cross platform framework that crawls websites, downloads JavaScript files, and automatically extracts security-relevant intelligence: secrets, API endpoints, subdomains, cloud resources, IPs, emails, and more.
 
 Built by **[Amjad Ali](https://www.linkedin.com/in/amjadali110/)**.
@@ -74,6 +76,12 @@ Starts backend on `:3001` and frontend on `:3000`. Scanner binaries are download
 Once running, open **http://localhost:3000** for the dashboard.  
 The backend API is available at **http://localhost:3001**.
 
+<img width="1908" height="1080" alt="image" src="https://github.com/user-attachments/assets/41c5f62c-d380-4950-8052-3a8b50690316" />
+
+<img width="1897" height="1080" alt="image" src="https://github.com/user-attachments/assets/dc35d964-6bc5-4c5d-87df-bb1f44a687cc" />
+
+<img width="1905" height="1080" alt="image" src="https://github.com/user-attachments/assets/44b51d6a-0c27-44c7-b7ac-890fefd2dbfb" />
+
 ---
 
 ## Scan Types
@@ -83,6 +91,8 @@ The backend API is available at **http://localhost:3001**.
 | `full` | Crawl target URL → discover JS files → download → analyze |
 | `js_urls` | Provide a list of JS file URLs directly → download → analyze |
 | `file` | Upload a single `.js` file → analyze (no crawling) |
+
+<img width="1906" height="1080" alt="image" src="https://github.com/user-attachments/assets/bfcd3151-62a3-4308-9e52-4f1eb14ae2d9" />
 
 ---
 
