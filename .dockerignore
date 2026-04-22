@@ -1,0 +1,33 @@
+# Python
+backend/venv/
+backend/__pycache__/
+backend/**/__pycache__/
+scanner/__pycache__/
+scanner/**/__pycache__/
+**/__pycache__/
+**/*.pyc
+**/*.pyo
+backend/instance/
+
+# Node
+frontend/node_modules/
+frontend/build/
+
+# Scanner binaries (downloaded fresh during Docker build)
+scanner/bin/
+
+# Runtime scan data
+data/
+
+# Dev / OS
+.env
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+*.log
+
+# Docs (not needed in container)
+docs/

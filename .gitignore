@@ -1,0 +1,38 @@
+# Runtime data
+data/scans/
+All_Scans_Results/
+
+# Downloaded tool binaries
+scanner/bin/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+backend/instance/
+backend/venv/
+venv/
+.venv/
+*.egg-info/
+
+# Node
+frontend/node_modules/
+frontend/build/
+frontend/.env
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+!.env.example
+
+# Docker
+*.log

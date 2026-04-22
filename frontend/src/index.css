@@ -1,0 +1,418 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom breakpoint for extra small screens (480px) */
+@media (min-width: 480px) {
+  .xs\:inline {
+    display: inline !important;
+  }
+  .xs\:hidden {
+    display: none !important;
+  }
+  .xs\:flex {
+    display: flex !important;
+  }
+  .xs\:block {
+    display: block !important;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-cyber-light;
+  }
+
+  html {
+    height: 100%;
+    overflow-x: hidden;
+    overflow-y: scroll;
+  }
+
+  body {
+    @apply bg-cyber-dark text-white font-inter;
+    background-image:
+      radial-gradient(circle at 25% 25%, rgba(0, 212, 255, 0.08) 0%, transparent 55%),
+      radial-gradient(circle at 75% 75%, rgba(165, 94, 234, 0.12) 0%, transparent 55%);
+    min-height: 100vh;
+    height: 100%;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+
+  #root {
+    min-height: 100vh;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+  }
+}
+
+@layer components {
+  .cyber-card {
+    @apply bg-cyber-gray border border-cyber-light rounded-xl p-4 sm:p-5 lg:p-6 shadow-lg relative overflow-hidden;
+    background:
+      radial-gradient(circle at top left, rgba(0, 212, 255, 0.12) 0, transparent 60%),
+      radial-gradient(circle at bottom right, rgba(0, 255, 136, 0.12) 0, transparent 55%),
+      linear-gradient(135deg, rgba(16, 16, 16, 0.95) 0%, rgba(32, 32, 32, 0.98) 100%);
+    backdrop-filter: blur(16px);
+  }
+
+  .cyber-card::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background-image: linear-gradient(
+      135deg,
+      rgba(0, 212, 255, 0.4),
+      rgba(0, 255, 136, 0.15),
+      rgba(165, 94, 234, 0.35)
+    );
+    opacity: 0;
+    mix-blend-mode: screen;
+    pointer-events: none;
+    transition: opacity 300ms ease-out;
+  }
+
+  .cyber-card:hover::before {
+    opacity: 0.35;
+  }
+
+  .cyber-button {
+    @apply px-3 sm:px-4 py-2 rounded-lg font-medium transition-all duration-300 border inline-flex items-center;
+  }
+
+  .cyber-button-primary {
+    @apply cyber-button bg-cyber-blue text-cyber-dark border-cyber-blue hover:bg-transparent hover:text-cyber-blue active:scale-95;
+  }
+
+  .cyber-button-secondary {
+    @apply cyber-button bg-transparent text-cyber-blue border-cyber-blue hover:bg-cyber-blue hover:text-cyber-dark active:scale-95;
+  }
+
+  .cyber-input {
+    @apply bg-cyber-light border border-cyber-light rounded-lg px-3 sm:px-4 py-2 text-white placeholder-gray-400 focus:outline-none focus:border-cyber-blue focus:ring-1 focus:ring-cyber-blue transition-all duration-300 text-sm sm:text-base;
+  }
+
+  .cyber-table {
+    @apply w-full bg-cyber-gray rounded-lg overflow-hidden;
+  }
+
+  .cyber-table th {
+    @apply bg-cyber-light px-3 sm:px-4 lg:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider;
+  }
+
+  .cyber-table td {
+    @apply px-3 sm:px-4 lg:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-300 border-b border-cyber-light;
+  }
+
+  .status-badge {
+    @apply px-2 py-1 rounded-full text-xs font-medium;
+  }
+
+  .status-running {
+    @apply status-badge bg-cyber-yellow bg-opacity-20 text-cyber-yellow;
+  }
+
+  .status-completed {
+    @apply status-badge bg-cyber-green bg-opacity-20 text-cyber-green;
+  }
+
+  .status-failed {
+    @apply status-badge bg-cyber-red bg-opacity-20 text-cyber-red;
+  }
+
+  .status-pending {
+    @apply status-badge bg-gray-500 bg-opacity-20 text-gray-400;
+  }
+}
+
+/* High-level layout shells */
+.cyber-shell {
+  position: relative;
+  isolation: isolate;
+}
+
+.cyber-shell::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(0, 212, 255, 0.12) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 212, 255, 0.12) 1px, transparent 1px);
+  background-size: 40px 40px;
+  mix-blend-mode: soft-light;
+  opacity: 0.3;
+  z-index: -2;
+}
+
+.cyber-shell::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 10% 0%, rgba(0, 212, 255, 0.16) 0, transparent 45%),
+    radial-gradient(circle at 100% 80%, rgba(0, 255, 136, 0.14) 0, transparent 50%);
+  opacity: 0.7;
+  mix-blend-mode: screen;
+  z-index: -3;
+}
+
+/* Floating scanline overlay for main content */
+.cyber-scanlines {
+  position: relative;
+}
+
+.cyber-scanlines::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: linear-gradient(
+    to bottom,
+    rgba(255, 255, 255, 0.04) 1px,
+    transparent 1px
+  );
+  background-size: 100% 3px;
+  opacity: 0.25;
+  mix-blend-mode: soft-light;
+}
+
+/* Technical chrome for navigation and headers */
+.cyber-chrome {
+  @apply bg-cyber-gray/90 border border-cyber-light backdrop-blur-xl;
+  box-shadow:
+    0 0 0 1px rgba(0, 212, 255, 0.15),
+    0 18px 45px rgba(0, 0, 0, 0.75);
+}
+
+.cyber-divider {
+  background: linear-gradient(
+    to right,
+    transparent,
+    rgba(0, 212, 255, 0.6),
+    rgba(165, 94, 234, 0.7),
+    transparent
+  );
+  height: 1px;
+  opacity: 0.9;
+}
+
+/* Tabs & active states */
+.cyber-tab {
+  position: relative;
+}
+
+.cyber-tab::after {
+  content: "";
+  position: absolute;
+  inset-inline: 12%;
+  bottom: 2px;
+  height: 2px;
+  border-radius: 999px;
+  background: linear-gradient(
+    90deg,
+    rgba(0, 212, 255, 0.6),
+    rgba(0, 255, 136, 0.9)
+  );
+  opacity: 0;
+  transform: scaleX(0.6);
+  transform-origin: center;
+  transition: opacity 200ms ease-out, transform 200ms ease-out;
+}
+
+.cyber-tab--active::after {
+  opacity: 1;
+  transform: scaleX(1);
+}
+
+/* Small technical elements */
+.cyber-ornament {
+  position: relative;
+}
+
+.cyber-ornament::before {
+  content: "";
+  position: absolute;
+  inset-inline-start: -8px;
+  top: 50%;
+  width: 3px;
+  height: 18px;
+  transform: translateY(-50%);
+  background: linear-gradient(
+    to bottom,
+    rgba(0, 212, 255, 0.2),
+    rgba(0, 255, 136, 0.9),
+    rgba(0, 212, 255, 0.2)
+  );
+  border-radius: 999px;
+}
+
+/* Global scrollbar styling */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #3a3a3a #1a1a1a;
+}
+
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+*::-webkit-scrollbar-track {
+  background: #1a1a1a;
+  border-radius: 4px;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: #3a3a3a;
+  border-radius: 4px;
+  border: 2px solid #1a1a1a;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: #00d4ff;
+}
+
+/* Thin scrollbar variant */
+.scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: #3a3a3a #1a1a1a;
+}
+
+.scrollbar-thin::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: #1a1a1a;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: #3a3a3a;
+  border-radius: 3px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background: #00d4ff;
+}
+
+/* Hide scrollbar on mobile for horizontal scroll containers */
+@media (max-width: 640px) {
+  .scrollbar-thin::-webkit-scrollbar {
+    height: 4px;
+  }
+}
+
+/* Touch-friendly improvements */
+@media (hover: none) and (pointer: coarse) {
+  .touch-manipulation {
+    touch-action: manipulation;
+  }
+
+  /* Increase tap targets on touch devices */
+  button, a, [role="button"] {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  /* Reduce animations on touch devices for better performance */
+  .transition-all {
+    transition-duration: 150ms;
+  }
+}
+
+/* Smooth scrolling for all scrollable elements */
+html, body, * {
+  scroll-behavior: smooth;
+}
+
+/* Enable momentum scrolling on iOS */
+.overflow-auto, .overflow-y-auto, .overflow-scroll, .overflow-y-scroll {
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Prevent text selection on buttons */
+button {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* Focus visible for accessibility */
+:focus-visible {
+  outline: 2px solid #00d4ff;
+  outline-offset: 2px;
+}
+
+/* Safe area insets for notched devices */
+@supports (padding: max(0px)) {
+  .safe-area-inset {
+    padding-left: max(1rem, env(safe-area-inset-left));
+    padding-right: max(1rem, env(safe-area-inset-right));
+    padding-bottom: max(1rem, env(safe-area-inset-bottom));
+  }
+}
+
+/* Mobile utility helpers (no desktop impact) */
+@media (max-width: 640px) {
+  .mobile-horizontal-scroll {
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scroll-snap-type: x proximity;
+  }
+
+  .mobile-horizontal-scroll > * {
+    scroll-snap-align: start;
+  }
+
+  .mobile-sticky-actions {
+    position: sticky;
+    bottom: 0;
+    z-index: 20;
+    margin-left: -0.75rem;
+    margin-right: -0.75rem;
+    padding: 0.75rem;
+    padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+    background: linear-gradient(
+      to top,
+      rgba(10, 10, 10, 0.98) 60%,
+      rgba(10, 10, 10, 0.75) 85%,
+      transparent
+    );
+    backdrop-filter: blur(8px);
+    border-top: 1px solid rgba(58, 58, 58, 0.8);
+  }
+}
+
+/* Animation for loading spinner */
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
+/* Truncate text utility */
+.truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Break words for long URLs */
+.break-all {
+  word-break: break-all;
+}
