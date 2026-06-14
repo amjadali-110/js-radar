@@ -7,6 +7,8 @@ and other non-routable addresses.
 Legitimate public scan targets (external IPs / hostnames) are allowed through.
 """
 
+from __future__ import annotations
+
 import ipaddress
 import re
 import socket
@@ -22,7 +24,6 @@ _BLOCKED_NETWORKS: list[ipaddress.IPv4Network | ipaddress.IPv6Network] = [
     ipaddress.ip_network('127.0.0.0/8'),       # loopback
     ipaddress.ip_network('169.254.0.0/16'),    # link-local / AWS metadata (169.254.169.254)
     ipaddress.ip_network('0.0.0.0/8'),
-    ipaddress.ip_network('100.64.0.0/10'),     # carrier-grade NAT
     ipaddress.ip_network('192.0.0.0/24'),
     ipaddress.ip_network('198.18.0.0/15'),     # benchmarking
     ipaddress.ip_network('198.51.100.0/24'),
