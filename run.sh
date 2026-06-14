@@ -29,33 +29,42 @@ echo ""
 
 # ============ Detect distro family for install hints ============
 detect_distro_family() {
-    if [ -f /etc/os-release ]; then
-        . /etc/os-release
-        case "$ID $ID_LIKE" in
-            *debian*|*ubuntu*) echo "debian" ;;
-            *arch*)            echo "arch" ;;
-            *fedora*|*rhel*)   echo "fedora" ;;
-            *suse*)            echo "suse" ;;
-            *)                 echo "unknown" ;;
-        esac
-    else
-        echo "unknown"
-    fi
+    case "$(uname -s)" in
+        Darwin*) echo "macos" ;;
+        *)
+            if [ -f /etc/os-release ]; then
+                . /etc/os-release
+                case "$ID $ID_LIKE" in
+                    *debian*|*ubuntu*) echo "debian" ;;
+                    *arch*)            echo "arch" ;;
+                    *fedora*|*rhel*)   echo "fedora" ;;
+                    *suse*)            echo "suse" ;;
+                    *)                 echo "unknown" ;;
+                esac
+            else
+                echo "unknown"
+            fi
+            ;;
+    esac
 }
 DISTRO_FAMILY=$(detect_distro_family)
 
 # Helper: print distro-specific install command for a package
+# Args: pkg_desc deb_pkg arch_pkg fed_pkg [brew_pkg]
 install_hint() {
     local pkg_desc="$1"
     local deb_pkg="$2"
     local arch_pkg="$3"
     local fed_pkg="$4"
+    local brew_pkg="${5:-$deb_pkg}"
     echo -e "${YELLOW}Install $pkg_desc for your system:${NC}"
     case "$DISTRO_FAMILY" in
+        macos)   echo "  brew install $brew_pkg" ;;
         debian)  echo "  sudo apt install $deb_pkg" ;;
         arch)    echo "  sudo pacman -S $arch_pkg" ;;
         fedora)  echo "  sudo dnf install $fed_pkg" ;;
         *)
+            echo "  macOS (Homebrew):            brew install $brew_pkg"
             echo "  Debian/Ubuntu/Kali/Parrot:  sudo apt install $deb_pkg"
             echo "  Arch/Manjaro:               sudo pacman -S $arch_pkg"
             echo "  Fedora/RHEL:                sudo dnf install $fed_pkg"
@@ -65,7 +74,7 @@ install_hint() {
 
 # ============ Check required system tools ============
 MISSING_TOOLS=0
-for tool in curl unzip tar; do
+for tool in curl unzip tar npx; do
     if ! command -v "$tool" &>/dev/null; then
         echo -e "${RED}ERROR: '$tool' is required but not found.${NC}"
         MISSING_TOOLS=1
@@ -86,7 +95,7 @@ done
 
 if [ -z "$PYTHON_BIN" ]; then
     echo -e "${RED}ERROR: Python 3.8+ is required but not found.${NC}"
-    install_hint "Python 3" "python3" "python" "python3"
+    install_hint "Python 3" "python3" "python" "python3" "python@3"
     exit 1
 fi
 PYTHON_VERSION=$("$PYTHON_BIN" -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')")
@@ -95,7 +104,7 @@ echo -e "${GREEN}[+] Using $PYTHON_BIN (Python $PYTHON_VERSION)${NC}"
 # Check for Node.js / npm
 if ! command -v node &>/dev/null || ! command -v npm &>/dev/null; then
     echo -e "${RED}ERROR: Node.js and npm are required but not found.${NC}"
-    install_hint "Node.js" "nodejs npm" "nodejs npm" "nodejs npm"
+    install_hint "Node.js" "nodejs npm" "nodejs npm" "nodejs npm" "node"
     exit 1
 fi
 echo -e "${GREEN}[+] Using node $(node -v), npm $(npm -v)${NC}"
@@ -128,7 +137,7 @@ esac
 get_latest_tag() {
     local repo="$1"
     local tag
-    tag=$(curl -sfL "https://api.github.com/repos/${repo}/releases/latest" | grep '"tag_name"' | head -1 | sed -E 's/.*"tag_name":\s*"([^"]+)".*/\1/')
+    tag=$(curl -sfL --max-time 30 "https://api.github.com/repos/${repo}/releases/latest" | grep '"tag_name"' | head -1 | sed -E 's/.*"tag_name":[[:space:]]*"([^"]+)".*/\1/')
     if [ -z "$tag" ]; then
         echo -e "${RED}[-] Failed to fetch latest release tag for ${repo}. Check internet connection or GitHub API rate limit.${NC}" >&2
         exit 1
@@ -136,20 +145,34 @@ get_latest_tag() {
     echo "$tag"
 }
 
+# Helper: download a URL with retries and informative error on failure
+_download_file() {
+    local url="$1"
+    local output="$2"
+    local attempt max_attempts=3
+    for attempt in 1 2 3; do
+        local http_code
+        http_code=$(curl -sfL --max-time 120 --retry 2 -w "%{http_code}" "$url" -o "$output" 2>/dev/null)
+        if [ "$http_code" = "200" ] && [ -s "$output" ]; then
+            return 0
+        fi
+        [ "$attempt" -lt "$max_attempts" ] && sleep 2
+    done
+    echo -e "${RED}[-] Download failed (HTTP $http_code): $url${NC}" >&2
+    return 1
+}
+
 # --- gospider ---
-# Asset pattern: gospider_v{VERSION}_{os}_{arch}.zip (uses x86_64, macos)
 if [ ! -f "$BIN_DIR/gospider" ]; then
     echo -e "${BLUE}[*] Installing external scanner dependency...${NC}"
     TAG=$(get_latest_tag "jaeles-project/gospider")
-    VERSION="${TAG#v}"
     if [ "$OS_LOWER" = "darwin" ]; then GOSPIDER_OS="macos"; else GOSPIDER_OS="$OS_LOWER"; fi
     GOSPIDER_URL="https://github.com/jaeles-project/gospider/releases/download/${TAG}/gospider_${TAG}_${GOSPIDER_OS}_${ARCH_FULL}.zip"
     echo -e "${BLUE}[*] Downloading external scanner dependency ...${NC}"
-    TEMP_FILE=$(mktemp)
-    TEMP_EXTRACT=$(mktemp -d)
-    if curl -sfL "$GOSPIDER_URL" -o "$TEMP_FILE"; then
+    TEMP_FILE=$(mktemp /tmp/jsradar.XXXXXX)
+    TEMP_EXTRACT=$(mktemp -d /tmp/jsradar.XXXXXX)
+    if _download_file "$GOSPIDER_URL" "$TEMP_FILE"; then
         unzip -qo "$TEMP_FILE" -d "$TEMP_EXTRACT" 2>/dev/null
-        # Binary may be nested in a subfolder — find and move it
         find "$TEMP_EXTRACT" -name "gospider" -type f -exec mv {} "$BIN_DIR/gospider" \;
         if [ -f "$BIN_DIR/gospider" ]; then
             chmod +x "$BIN_DIR/gospider"
@@ -159,22 +182,21 @@ if [ ! -f "$BIN_DIR/gospider" ]; then
             exit 1
         fi
     else
-        echo -e "${RED}[-] Failed to download external scanner dependency${NC}"
+        echo -e "${RED}[-] Failed to download external scanner dependency. Check your internet connection.${NC}"
         exit 1
     fi
     rm -rf "$TEMP_FILE" "$TEMP_EXTRACT"
 fi
 
 # --- trufflehog ---
-# Asset pattern: trufflehog_{VERSION}_{os}_{arch}.tar.gz (uses darwin, amd64)
 if [ ! -f "$BIN_DIR/trufflehog" ]; then
     echo -e "${BLUE}[*] Installing external scanner dependency...${NC}"
     TAG=$(get_latest_tag "trufflesecurity/trufflehog")
     VERSION="${TAG#v}"
     TRUFFLEHOG_URL="https://github.com/trufflesecurity/trufflehog/releases/download/${TAG}/trufflehog_${VERSION}_${OS_LOWER}_${ARCH_AMD}.tar.gz"
     echo -e "${BLUE}[*] Downloading external scanner dependency ...${NC}"
-    TEMP_FILE=$(mktemp)
-    if curl -sfL "$TRUFFLEHOG_URL" -o "$TEMP_FILE"; then
+    TEMP_FILE=$(mktemp /tmp/jsradar.XXXXXX)
+    if _download_file "$TRUFFLEHOG_URL" "$TEMP_FILE"; then
         tar -xzf "$TEMP_FILE" -C "$BIN_DIR" trufflehog 2>/dev/null
         if [ -f "$BIN_DIR/trufflehog" ]; then
             chmod +x "$BIN_DIR/trufflehog"
@@ -184,14 +206,13 @@ if [ ! -f "$BIN_DIR/trufflehog" ]; then
             exit 1
         fi
     else
-        echo -e "${RED}[-] Failed to download external scanner dependency${NC}"
+        echo -e "${RED}[-] Failed to download external scanner dependency. Check your internet connection.${NC}"
         exit 1
     fi
     rm -f "$TEMP_FILE"
 fi
 
 # --- dnsx ---
-# Asset pattern: dnsx_{VERSION}_{os}_{arch}.zip (uses macOS for darwin, amd64)
 if [ ! -f "$BIN_DIR/dnsx" ]; then
     echo -e "${BLUE}[*] Installing external scanner dependency...${NC}"
     TAG=$(get_latest_tag "projectdiscovery/dnsx")
@@ -199,9 +220,9 @@ if [ ! -f "$BIN_DIR/dnsx" ]; then
     if [ "$OS_LOWER" = "darwin" ]; then DNSX_OS="macOS"; else DNSX_OS="$OS_LOWER"; fi
     DNSX_URL="https://github.com/projectdiscovery/dnsx/releases/download/${TAG}/dnsx_${VERSION}_${DNSX_OS}_${ARCH_AMD}.zip"
     echo -e "${BLUE}[*] Downloading external scanner dependency ...${NC}"
-    TEMP_FILE=$(mktemp)
-    TEMP_EXTRACT=$(mktemp -d)
-    if curl -sfL "$DNSX_URL" -o "$TEMP_FILE"; then
+    TEMP_FILE=$(mktemp /tmp/jsradar.XXXXXX)
+    TEMP_EXTRACT=$(mktemp -d /tmp/jsradar.XXXXXX)
+    if _download_file "$DNSX_URL" "$TEMP_FILE"; then
         unzip -qo "$TEMP_FILE" -d "$TEMP_EXTRACT" 2>/dev/null
         find "$TEMP_EXTRACT" -name "dnsx" -type f -exec mv {} "$BIN_DIR/dnsx" \;
         if [ -f "$BIN_DIR/dnsx" ]; then
@@ -212,7 +233,7 @@ if [ ! -f "$BIN_DIR/dnsx" ]; then
             exit 1
         fi
     else
-        echo -e "${RED}[-] Failed to download external scanner dependency${NC}"
+        echo -e "${RED}[-] Failed to download external scanner dependency. Check your internet connection.${NC}"
         exit 1
     fi
     rm -rf "$TEMP_FILE" "$TEMP_EXTRACT"
@@ -242,13 +263,13 @@ if [ "$VENV_OK" = false ]; then
     # Check if venv module is available
     if ! "$PYTHON_BIN" -c "import venv" 2>/dev/null; then
         echo -e "${RED}ERROR: Python venv module is not installed.${NC}"
-        install_hint "Python venv" "python${PYTHON_VERSION}-venv" "python" "python3"
+        install_hint "Python venv" "python${PYTHON_VERSION}-venv" "python" "python3" "python@3"
         exit 1
     fi
 
     if ! "$PYTHON_BIN" -m venv "$VENV_DIR"; then
         echo -e "${RED}ERROR: Failed to create virtual environment.${NC}"
-        install_hint "Python venv" "python${PYTHON_VERSION}-venv" "python" "python3"
+        install_hint "Python venv" "python${PYTHON_VERSION}-venv" "python" "python3" "python@3"
         exit 1
     fi
 fi
@@ -264,13 +285,11 @@ fi
 # Check if node_modules is properly installed (react-scripts must exist)
 if [ ! -d "$SCRIPT_DIR/frontend/node_modules/react-scripts" ]; then
     echo -e "${YELLOW}Installing frontend dependencies...${NC}"
-    cd "$SCRIPT_DIR/frontend"
-    rm -rf node_modules
-    if ! npm install; then
-        echo -e "${RED}ERROR: npm install failed. Check your internet connection and try again.${NC}"
-        exit 1
-    fi
-    cd "$SCRIPT_DIR"
+    (
+        cd "$SCRIPT_DIR/frontend" || exit 1
+        rm -rf node_modules
+        npm install
+    ) || { echo -e "${RED}ERROR: npm install failed. Check your internet connection and try again.${NC}"; exit 1; }
 fi
 
 # ============ Detect local IPs and set CORS_ORIGINS ============
@@ -282,8 +301,13 @@ FRONTEND_PORT=3000
 _cors="http://localhost:${FRONTEND_PORT},http://127.0.0.1:${FRONTEND_PORT}"
 _network_urls=""
 
-# hostname -I returns space-separated IPs (Linux); skip loopback
-if command -v hostname &>/dev/null; then
+# Collect non-loopback IPv4 addresses; macOS lacks hostname -I, use ifconfig instead
+if [ "$OS_LOWER" = "darwin" ]; then
+    for _ip in $(ifconfig 2>/dev/null | awk '/inet / && !/127\.0\.0\.1/ {print $2}'); do
+        _cors="${_cors},http://${_ip}:${FRONTEND_PORT}"
+        _network_urls="${_network_urls}\n  ${BLUE}Network UI:${NC}   http://${_ip}:${FRONTEND_PORT}"
+    done
+elif command -v hostname &>/dev/null; then
     for _ip in $(hostname -I 2>/dev/null | tr ' ' '\n' | grep -E '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$' | grep -v '^127\.'); do
         _cors="${_cors},http://${_ip}:${FRONTEND_PORT}"
         _network_urls="${_network_urls}\n  ${BLUE}Network UI:${NC}   http://${_ip}:${FRONTEND_PORT}"
@@ -292,6 +316,9 @@ fi
 
 export CORS_ORIGINS="$_cors"
 export BACKEND_PORT
+
+# Enable job control before registering the trap so kill -- -$PID works correctly
+set -m
 
 # Trap Ctrl+C to cleanup — register early so no process is left orphaned
 BACKEND_PID=""
@@ -314,7 +341,6 @@ trap cleanup SIGINT SIGTERM
 # Start backend in background
 echo -e "${GREEN}Starting Backend API on port 3001...${NC}"
 cd "$SCRIPT_DIR"
-set -m  # Enable job control so background processes get their own process group
 "$VENV_DIR/bin/gunicorn" --config backend/gunicorn.conf.py backend.wsgi:app &
 BACKEND_PID=$!
 
